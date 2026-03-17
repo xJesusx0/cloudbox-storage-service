@@ -1,4 +1,4 @@
-package com.github.xjesusx0.cloudbox.exceptions;
+package com.github.xjesusx0.cloudbox.core.exceptions;
 
 import org.springframework.http.HttpStatus;
 

@@ -1,6 +1,6 @@
-package com.github.xjesusx0.cloudbox.application.enums;
+package com.github.xjesusx0.cloudbox.domain.models;
 
-import com.github.xjesusx0.cloudbox.exceptions.NotFoundException;
+import com.github.xjesusx0.cloudbox.core.exceptions.NotFoundException;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 

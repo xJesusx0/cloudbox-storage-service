@@ -1,8 +1,9 @@
-package com.github.xjesusx0.cloudbox.exceptions;
+package com.github.xjesusx0.cloudbox.core.exceptions;
 
 import org.springframework.http.HttpStatus;
 
-public class NotFoundException extends CloudBoxException{
+public class NotFoundException extends CloudBoxException {
+
     public NotFoundException(String message) {
         super(HttpStatus.NOT_FOUND, message);
     }

@@ -1,6 +1,6 @@
-package com.github.xjesusx0.cloudbox.application.storage;
+package com.github.xjesusx0.cloudbox.application.services;
 
-import com.github.xjesusx0.cloudbox.application.models.UploadFilesRequest;
+import com.github.xjesusx0.cloudbox.application.dtos.UploadFilesRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,5 +17,4 @@ public class StorageService {
             });
         });
     }
-
 }

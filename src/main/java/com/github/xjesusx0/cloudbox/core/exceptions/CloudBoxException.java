@@ -1,14 +1,14 @@
-package com.github.xjesusx0.cloudbox.exceptions;
+package com.github.xjesusx0.cloudbox.core.exceptions;
 
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 
 @Getter
 public class CloudBoxException extends RuntimeException {
-   private final HttpStatus status;
+    private final HttpStatus status;
 
     public CloudBoxException(HttpStatus status, String message) {
+        super(message);
         this.status = status;
     }
 }

@@ -1,6 +1,6 @@
-package com.github.xjesusx0.cloudbox.application.storage;
+package com.github.xjesusx0.cloudbox.domain.ports;
 
-import com.github.xjesusx0.cloudbox.application.enums.StorageProtocol;
+import com.github.xjesusx0.cloudbox.domain.models.StorageProtocol;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface StorageStrategy {
