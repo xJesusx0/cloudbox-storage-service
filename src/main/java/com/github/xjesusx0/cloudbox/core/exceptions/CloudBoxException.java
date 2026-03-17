@@ -11,4 +11,9 @@ public class CloudBoxException extends RuntimeException {
         super(message);
         this.status = status;
     }
+
+    public CloudBoxException(HttpStatus status, String message, Throwable cause) {
+        super(message, cause);
+        this.status = status;
+    }
 }
