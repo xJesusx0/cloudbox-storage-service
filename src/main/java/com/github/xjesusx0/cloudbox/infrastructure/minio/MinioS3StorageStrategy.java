@@ -17,9 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import com.github.xjesusx0.cloudbox.application.dtos.FileMetadata;
@@ -61,11 +59,12 @@ public class MinioS3StorageStrategy implements StorageStrategy {
     }
 
     @Override
-    public void save(MultipartFile file) {
+    public void save(MultipartFile file, String userId) {
         try {
+            String objectName = userId + "/" + file.getOriginalFilename();
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(bucket)
-                    .object(file.getOriginalFilename())
+                    .object(objectName)
                     .stream(file.getInputStream(), file.getSize(), -1)
                     .contentType(file.getContentType())
                     .build());
@@ -75,10 +74,13 @@ public class MinioS3StorageStrategy implements StorageStrategy {
     }
 
     @Override
-    public List<FileMetadata> listFiles() {
+    public List<FileMetadata> listFiles(String userId) {
         try {
             Iterable<Result<Item>> results = minioClient.listObjects(
-                    ListObjectsArgs.builder().bucket(bucket).build());
+                    ListObjectsArgs.builder()
+                            .bucket(bucket)
+                            .prefix(userId + "/")
+                            .build());
 
             return StreamSupport.stream(results.spliterator(), false)
                     .map(result -> {

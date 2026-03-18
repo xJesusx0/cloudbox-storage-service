@@ -7,6 +7,6 @@ import java.util.List;
 
 public interface StorageStrategy {
     StorageProtocol getProtocol();
-    void save(MultipartFile file);
-    List<FileMetadata> listFiles();
+    void save(MultipartFile file, String userId);
+    List<FileMetadata> listFiles(String userId);
 }

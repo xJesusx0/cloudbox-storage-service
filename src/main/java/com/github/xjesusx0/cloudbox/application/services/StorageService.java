@@ -14,15 +14,15 @@ public class StorageService {
 
     private final StorageStrategyFactory storageStrategyFactory;
 
-    public void save(UploadFilesRequest uploadFilesRequest) {
+    public void save(UploadFilesRequest uploadFilesRequest, String userId) {
         uploadFilesRequest.files().forEach(uploadItem -> {
             uploadItem.protocols().forEach(protocol -> {
-                storageStrategyFactory.get(protocol).save(uploadItem.file());
+                storageStrategyFactory.get(protocol).save(uploadItem.file(), userId);
             });
         });
     }
 
-    public List<FileMetadata> listFiles(StorageProtocol protocol) {
-        return storageStrategyFactory.get(protocol).listFiles();
+    public List<FileMetadata> listFiles(StorageProtocol protocol, String userId) {
+        return storageStrategyFactory.get(protocol).listFiles(userId);
     }
 }

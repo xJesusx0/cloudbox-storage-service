@@ -19,6 +19,7 @@ import java.util.List;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.security.Principal;
 
 @RestController
 @RequestMapping("/api/v1/files")
@@ -35,9 +36,11 @@ public class FileController {
             @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     })
     @PostMapping(consumes = "multipart/form-data")
-    public ResponseEntity<Object> uploadFile(@Valid @ModelAttribute UploadFilesRequest request) {
+    public ResponseEntity<Object> uploadFile(
+            @Valid @ModelAttribute UploadFilesRequest request,
+            Principal principal) {
 
-        storageService.save(request);
+        storageService.save(request, principal.getName());
         return ResponseEntity.ok().build();
     }
 
@@ -53,7 +56,9 @@ public class FileController {
             @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     })
     @GetMapping
-    public ResponseEntity<List<FileMetadata>> listFiles(@RequestParam StorageProtocol protocol) {
-        return ResponseEntity.ok(storageService.listFiles(protocol));
+    public ResponseEntity<List<FileMetadata>> listFiles(
+            @RequestParam StorageProtocol protocol,
+            Principal principal) {
+        return ResponseEntity.ok(storageService.listFiles(protocol, principal.getName()));
     }
 }
