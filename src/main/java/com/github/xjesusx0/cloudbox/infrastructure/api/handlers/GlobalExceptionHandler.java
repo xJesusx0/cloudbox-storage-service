@@ -18,7 +18,6 @@ import java.util.List;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    // 🔹 Método helper para no repetir código
     private ProblemDetail buildProblem(HttpStatus status, String detail) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
         problem.setTitle(status.getReasonPhrase());
@@ -27,17 +26,36 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    private ProblemDetail logAndBuild(HttpStatus status, String detail, Exception ex, LogLevel level) {
+
+        switch (level) {
+            case ERROR -> log.atError().setCause(ex).log(detail);
+            case WARN -> log.atWarn().setCause(ex).log(detail);
+            case INFO -> log.atInfo().setCause(ex).log(detail);
+        }
+
+        return buildProblem(status, detail);
+    }
+
+    private enum LogLevel {
+        ERROR, WARN, INFO
+    }
+
     // 🔹 Excepción de negocio
     @ExceptionHandler(CloudBoxException.class)
     public ProblemDetail handleCloudBoxException(CloudBoxException ex) {
-        return buildProblem(ex.getStatus(), ex.getMessage());
+        return logAndBuild(ex.getStatus(), ex.getMessage(), ex, LogLevel.WARN);
     }
 
     // 🔹 Validaciones (@Valid)
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidationException(MethodArgumentNotValidException ex) {
 
-        ProblemDetail problem = buildProblem(HttpStatus.BAD_REQUEST, "Validation failed");
+        ProblemDetail problem = logAndBuild(
+                HttpStatus.BAD_REQUEST,
+                "Validation failed",
+                ex,
+                LogLevel.INFO);
 
         List<String> errors = ex.getBindingResult().getFieldErrors().stream()
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
@@ -50,49 +68,70 @@ public class GlobalExceptionHandler {
     // 🔹 Parámetro faltante
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ProblemDetail handleMissingParams(MissingServletRequestParameterException ex) {
-        return buildProblem(HttpStatus.BAD_REQUEST,
-                "Missing parameter: " + ex.getParameterName());
+        return logAndBuild(
+                HttpStatus.BAD_REQUEST,
+                "Missing parameter: " + ex.getParameterName(),
+                ex,
+                LogLevel.INFO);
     }
 
-    // 🔹 Tipo incorrecto (ej: enum mal enviado)
+    // 🔹 Tipo incorrecto
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
-        return buildProblem(HttpStatus.BAD_REQUEST,
-                "Invalid value for parameter: " + ex.getName());
+        return logAndBuild(
+                HttpStatus.BAD_REQUEST,
+                "Invalid value for parameter: " + ex.getName(),
+                ex,
+                LogLevel.INFO);
     }
 
-    // 🔹 Null pointer (error de backend)
+    // 🔹 Null pointer
     @ExceptionHandler(NullPointerException.class)
     public ProblemDetail handleNullPointer(NullPointerException ex) {
-        log.error("NullPointerException", ex);
-        return buildProblem(HttpStatus.INTERNAL_SERVER_ERROR,
-                "Unexpected null value encountered");
+        return logAndBuild(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "Unexpected null value encountered",
+                ex,
+                LogLevel.ERROR);
     }
 
-    // 🔹 Illegal state (estado inválido)
+    // 🔹 Illegal state
     @ExceptionHandler(IllegalStateException.class)
     public ProblemDetail handleIllegalState(IllegalStateException ex) {
-        log.warn("IllegalStateException", ex);
-        return buildProblem(HttpStatus.CONFLICT, ex.getMessage());
+        return logAndBuild(
+                HttpStatus.CONFLICT,
+                ex.getMessage(),
+                ex,
+                LogLevel.WARN);
     }
 
-    // 🔹 Illegal argument (input inválido)
+    // 🔹 Illegal argument
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
-        return buildProblem(HttpStatus.BAD_REQUEST, ex.getMessage());
+        return logAndBuild(
+                HttpStatus.BAD_REQUEST,
+                ex.getMessage(),
+                ex,
+                LogLevel.WARN);
     }
 
-    // 🔹 Seguridad (opcional si luego usas Spring Security)
+    // 🔹 Seguridad
     @ExceptionHandler(SecurityException.class)
     public ProblemDetail handleSecurity(SecurityException ex) {
-        return buildProblem(HttpStatus.FORBIDDEN, "Access denied");
+        return logAndBuild(
+                HttpStatus.FORBIDDEN,
+                "Access denied",
+                ex,
+                LogLevel.WARN);
     }
 
     // 🔹 Catch-all
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGenericException(Exception ex) {
-        log.error("Unexpected error", ex);
-        return buildProblem(HttpStatus.INTERNAL_SERVER_ERROR,
-                "An unexpected error occurred");
+        return logAndBuild(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "An unexpected error occurred",
+                ex,
+                LogLevel.ERROR);
     }
 }

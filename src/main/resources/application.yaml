@@ -28,6 +28,12 @@ storage:
     region: ${MINIO_REGION}
     bucket-name: ${MINIO_BUCKET_NAME}
 
+  ftp:
+    host: ${FTP_HOST}
+    port: ${FTP_PORT}
+    username: ${FTP_USERNAME}
+    password: ${FTP_PASSWORD}
+
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION}
