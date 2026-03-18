@@ -1,12 +1,10 @@
 # Cloudbox Storage Service
 
-Este proyecto es una API construida con Spring Boot 3 para almacenar archivos en distintos sistemas (S3, FTP, SMB, NFS). A continuación se explica cómo construir y ejecutar la aplicación mediante Docker.
+Este proyecto es una API construida con Spring Boot 4 para almacenar archivos en distintos sistemas (S3, FTP, SMB, NFS). A continuación se explica cómo construir y ejecutar la aplicación mediante Docker.
 
 ## 1. Construir la Imagen Docker
 
-Noté que tuviste un error al ejecutar `docker build`. El problema es que mezclaste el comando de `build` con `push` y te faltó el `.` al final, que indica el directorio actual como contexto de construcción.
-
-El comando correcto para construir la imagen es:
+El comando para construir la imagen es:
 
 ```bash
 docker build -t xjesusx0/cloudbox-storage-service:0.0.1-SNAPSHOT .
@@ -23,7 +21,7 @@ docker push xjesusx0/cloudbox-storage-service:0.0.1-SNAPSHOT
 **¿Tenías que pasarle las variables de entorno al construir (`docker build`)?**
 **No**, las variables de entorno como los accesos a la base de datos o a MinIO (S3) no se necesitan al momento de *construir* la imagen (al menos no en la etapa de empaquetado normal de Java), sino al momento de **ejecutar / correr** el contenedor.
 
-El proyecto requiere las siguientes variables de entorno para conectarse correctamente a MinIO (como se ve en tu `.env`):
+El proyecto requiere las siguientes variables de entorno para conectarse correctamente a MinIO:
 - `MINIO_ENDPOINT`
 - `MINIO_USERNAME`
 - `MINIO_PASSWORD`
