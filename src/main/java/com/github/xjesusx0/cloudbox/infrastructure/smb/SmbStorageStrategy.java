@@ -15,15 +15,20 @@ import com.hierynomus.smbj.connection.Connection;
 import com.hierynomus.smbj.session.Session;
 import com.hierynomus.smbj.share.DiskShare;
 import com.hierynomus.msdtyp.AccessMask;
+import com.hierynomus.msdtyp.FileTime;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
 import com.hierynomus.smbj.share.File;
 
 import java.io.OutputStream;
+import java.net.URLConnection;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import com.hierynomus.msfscc.FileAttributes;
 import com.hierynomus.msfscc.fileinformation.FileIdBothDirectoryInformation;
 
 @Slf4j
@@ -61,11 +66,11 @@ public class SmbStorageStrategy implements StorageStrategy {
             AuthenticationContext ac = new AuthenticationContext(username, password.toCharArray(), domain);
             try (Session session = connection.authenticate(ac)) {
                 try (DiskShare diskShare = (DiskShare) session.connectShare(share)) {
-                    
+
                     ensureDirectoryExists(diskShare, userId);
 
                     String remoteFilePath = userId + "\\" + file.getOriginalFilename();
-                    
+
                     try (File smbFile = diskShare.openFile(
                             remoteFilePath,
                             EnumSet.of(AccessMask.GENERIC_WRITE),
@@ -73,7 +78,7 @@ public class SmbStorageStrategy implements StorageStrategy {
                             SMB2ShareAccess.ALL,
                             SMB2CreateDisposition.FILE_OVERWRITE_IF,
                             null)) {
-                        
+
                         try (OutputStream os = smbFile.getOutputStream()) {
                             file.getInputStream().transferTo(os);
                         }
@@ -94,23 +99,15 @@ public class SmbStorageStrategy implements StorageStrategy {
             AuthenticationContext ac = new AuthenticationContext(username, password.toCharArray(), domain);
             try (Session session = connection.authenticate(ac)) {
                 try (DiskShare diskShare = (DiskShare) session.connectShare(share)) {
-                    
+
                     if (!diskShare.folderExists(userId)) {
                         return Collections.emptyList();
                     }
 
-                    List<FileIdBothDirectoryInformation> list = diskShare.list(userId);
-                    return list.stream()
+                    return diskShare.list(userId).stream()
                             .filter(f -> !f.getFileName().equals(".") && !f.getFileName().equals(".."))
-                            .map(f -> FileMetadata.builder()
-                                    .name(f.getFileName())
-                                    .path(userId + "/" + f.getFileName())
-                                    .size(f.getEndOfFile())
-                                    .isDirectory((f.getFileAttributes() & com.hierynomus.msfscc.FileAttributes.FILE_ATTRIBUTE_DIRECTORY.getValue()) != 0)
-                                    .lastModified(f.getLastWriteTime() != null ? f.getLastWriteTime().toInstant() : null)
-                                    .build())
+                            .map(f -> buildMetadata(f, userId))
                             .collect(Collectors.toList());
-                    
                 }
             }
         } catch (Exception e) {
@@ -120,12 +117,44 @@ public class SmbStorageStrategy implements StorageStrategy {
         }
     }
 
+    private FileMetadata buildMetadata(FileIdBothDirectoryInformation f, String userId) {
+        boolean isDir = (f.getFileAttributes()
+                & FileAttributes.FILE_ATTRIBUTE_DIRECTORY.getValue()) != 0;
+
+        return FileMetadata.builder()
+                .name(f.getFileName())
+                .path(userId + "/" + f.getFileName())
+                .size(f.getEndOfFile())
+                .isDirectory(isDir)
+                .lastModified(toInstant(f.getLastWriteTime()))
+                .creationTime(toInstant(f.getCreationTime()))
+                .lastAccessTime(toInstant(f.getLastAccessTime()))
+                .allocationSize(f.getAllocationSize())
+                .extension(extractExtension(f.getFileName()))
+                .mimeType(URLConnection.guessContentTypeFromName(f.getFileName()))
+                .etag(f.getEndOfFile() + "-" + toInstant(f.getLastWriteTime()).toEpochMilli())
+                // owner/group: no expuesto por FileIdBothDirectoryInformation
+                .build();
+    }
+
+    private Instant toInstant(FileTime fileTime) {
+        return fileTime != null ? fileTime.toInstant() : null;
+    }
+
+    private String extractExtension(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        return (dot != -1 && dot < fileName.length() - 1)
+                ? fileName.substring(dot + 1).toLowerCase()
+                : null;
+    }
+
     private void ensureDirectoryExists(DiskShare diskShare, String dirPath) {
         if (!diskShare.folderExists(dirPath)) {
             String[] pathElements = dirPath.split("\\\\|/");
             String currentPath = "";
             for (String element : pathElements) {
-                if (element.isEmpty()) continue;
+                if (element.isEmpty())
+                    continue;
                 currentPath = currentPath.isEmpty() ? element : currentPath + "\\" + element;
                 if (!diskShare.folderExists(currentPath)) {
                     diskShare.mkdir(currentPath);

@@ -41,6 +41,9 @@ storage:
     password: ${SMB_PASSWORD}
     domain: ${SMB_DOMAIN:""}
 
+  nfs:
+    mount-path: ${NFS_MOUNT_PATH}
+
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION}

@@ -11,6 +11,9 @@ import org.apache.commons.net.ftp.FTPSClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.PrintCommandListener;
 import java.io.PrintWriter;
+import java.net.URLConnection;
+import java.time.Instant;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.List;
 
 @Slf4j
@@ -91,26 +95,17 @@ public class FtpStorageStrategy implements StorageStrategy {
             }
             ftpClient.execPBSZ(0);
             ftpClient.execPROT("P");
-
             ftpClient.enterLocalPassiveMode();
 
-            // Try to change working directory to test if it exists
             if (!ftpClient.changeWorkingDirectory(userId)) {
-                // If it doesn't exist, simply return empty list
                 return List.of();
             }
 
             FTPFile[] files = ftpClient.listFiles();
 
             return Arrays.stream(files)
-                    .map(file -> FileMetadata.builder()
-                            .name(file.getName())
-                            .path(userId + "/" + file.getName())
-                            .size(file.getSize())
-                            .isDirectory(file.isDirectory())
-                            .lastModified(file.getTimestamp() != null ? file.getTimestamp().toInstant() : null)
-                            // FTP doesn't natively supply ETag
-                            .build())
+                    .filter(FTPFile::isValid) // descartar entradas que fallaron al parsear
+                    .map(file -> buildMetadata(file, userId))
                     .toList();
 
         } catch (IOException e) {
@@ -118,6 +113,34 @@ public class FtpStorageStrategy implements StorageStrategy {
         } finally {
             disconnect(ftpClient);
         }
+    }
+
+    private FileMetadata buildMetadata(FTPFile file, String userId) {
+        return FileMetadata.builder()
+                .name(file.getName())
+                .path(userId + "/" + file.getName())
+                .size(file.getSize())
+                .isDirectory(file.isDirectory())
+                .lastModified(toInstant(file.getTimestamp()))
+                .extension(extractExtension(file.getName()))
+                .mimeType(URLConnection.guessContentTypeFromName(file.getName()))
+                .etag(file.getSize() + "-" + toInstant(file.getTimestamp()).toEpochMilli())
+                .owner(file.getUser())
+                .group(file.getGroup())
+                // creationTime y lastAccessTime: no disponibles en FTP
+                // allocationSize: no disponible en FTP
+                .build();
+    }
+
+    private Instant toInstant(Calendar calendar) {
+        return calendar.toInstant();
+    }
+
+    private String extractExtension(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        return (dot != -1 && dot < fileName.length() - 1)
+                ? fileName.substring(dot + 1).toLowerCase()
+                : null;
     }
 
     private void ensureDirectoryExists(FTPSClient ftpClient, String dirPath) throws IOException {

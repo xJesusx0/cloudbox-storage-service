@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.net.URLConnection;
 import java.util.List;
 import java.util.stream.StreamSupport;
 
@@ -87,12 +88,20 @@ public class MinioS3StorageStrategy implements StorageStrategy {
                         try {
                             Item item = result.get();
                             return FileMetadata.builder()
-                                    .name(item.objectName())
+                                    .name(extractName(item.objectName()))
                                     .path(item.objectName())
                                     .size(item.size())
                                     .isDirectory(item.isDir())
-                                    .lastModified(item.lastModified() != null ? item.lastModified().toInstant() : null)
-                                    .etag(item.etag())
+                                    .lastModified(item.lastModified() != null
+                                            ? item.lastModified().toInstant()
+                                            : null)
+                                    .extension(extractExtension(extractName(item.objectName())))
+                                    .mimeType(URLConnection.guessContentTypeFromName(item.objectName()))
+                                    .etag(item.etag()) // MinIO provee MD5 real
+                                    .storageClass(item.storageClass())
+                                    .bucketName(bucket)
+                                    // versionId disponible con listObjects versioned
+                                    // creationTime, lastAccessTime, owner, group: no disponibles en MinIO
                                     .build();
                         } catch (Exception e) {
                             throw new FileListException("Error listing files from MinIO", e);
@@ -102,5 +111,17 @@ public class MinioS3StorageStrategy implements StorageStrategy {
         } catch (Exception e) {
             throw new FileListException("Error listing files from MinIO", e);
         }
+    }
+
+    private String extractName(String objectName) {
+        int lastSlash = objectName.lastIndexOf('/');
+        return (lastSlash != -1) ? objectName.substring(lastSlash + 1) : objectName;
+    }
+
+    private String extractExtension(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        return (dot != -1 && dot < fileName.length() - 1)
+                ? fileName.substring(dot + 1).toLowerCase()
+                : null;
     }
 }
