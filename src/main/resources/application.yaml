@@ -34,6 +34,13 @@ storage:
     username: ${FTP_USERNAME}
     password: ${FTP_PASSWORD}
 
+  smb:
+    host: ${SMB_HOST}
+    share: ${SMB_SHARE}
+    username: ${SMB_USERNAME}
+    password: ${SMB_PASSWORD}
+    domain: ${SMB_DOMAIN:""}
+
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION}
