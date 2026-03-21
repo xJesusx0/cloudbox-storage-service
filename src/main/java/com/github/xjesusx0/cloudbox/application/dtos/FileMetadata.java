@@ -4,6 +4,7 @@ import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,52 +15,72 @@ import lombok.NoArgsConstructor;
 @Data
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(description = "Detailed information and metadata of a file or directory")
 public class FileMetadata {
 
     // ── Comunes a todos los protocolos ──────────────────────────────────────
 
-    private String name; // nombre del archivo
-    private String path; // ruta relativa al usuario
-    private long size; // tamaño lógico en bytes
+    @Schema(description = "Filename", example = "report.pdf")
+    private String name;
+
+    @Schema(description = "Relative path to the user's root", example = "documents/reports/report.pdf")
+    private String path;
+
+    @Schema(description = "File size in bytes", example = "102400")
+    private long size;
+
+    @Schema(description = "Whether the item is a directory", example = "false")
     private boolean isDirectory;
-    private Instant lastModified; // última escritura
+
+    @Schema(description = "Last modified timestamp")
+    private Instant lastModified;
 
     // ── Identificación ──────────────────────────────────────────────────────
 
-    private String etag; // size-lastModifiedMillis (local/FTP/SMB)
-                         // o MD5 real (MinIO/S3)
-    private String url; // URL pública o presignada (MinIO)
+    @Schema(description = "Entity tag for cache and versioning", example = "5eb63bb0-123")
+    private String etag;
+
+    @Schema(description = "Public or pre-signed URL for the file", example = "https://storage.example.com/file.pdf")
+    private String url;
 
     // ── Tipo de archivo ─────────────────────────────────────────────────────
 
-    private String extension; // "pdf", "jpg", null si directorio
-    private String mimeType; // "application/pdf", null si desconocido
+    @Schema(description = "File extension without the dot", example = "pdf")
+    private String extension;
+
+    @Schema(description = "MIME type of the file", example = "application/pdf")
+    private String mimeType;
 
     // ── Tiempos extendidos ──────────────────────────────────────────────────
-    // Disponible en: Local (BasicFileAttributes), SMB, FTP parcialmente
-    // NO disponible en: MinIO (solo lastModified)
 
-    private Instant creationTime; // cuándo se creó
-    private Instant lastAccessTime; // último acceso/lectura
+    @Schema(description = "File creation timestamp")
+    private Instant creationTime;
+
+    @Schema(description = "Last access timestamp")
+    private Instant lastAccessTime;
 
     // ── Propiedad (Unix/Posix) ───────────────────────────────────────────────
-    // Disponible en: Local (PosixFileAttributes), FTP, SMB
-    // NO disponible en: MinIO nativamente
 
-    private String owner; // usuario dueño del archivo
-    private String group; // grupo dueño
+    @Schema(description = "Owner of the file", example = "cloud-user")
+    private String owner;
+
+    @Schema(description = "Group owner of the file", example = "staff")
+    private String group;
 
     // ── Espacio en disco ────────────────────────────────────────────────────
-    // Disponible en: SMB (allocationSize), Local (toFile().getTotalSpace())
-    // NO disponible en: MinIO, FTP
 
-    private Long allocationSize; // espacio real ocupado en disco (>= size)
+    @Schema(description = "Actual disk space occupied (may be greater than logical size)", example = "106496")
+    private Long allocationSize;
 
     // ── MinIO / S3 ──────────────────────────────────────────────────────────
-    // Solo disponibles con almacenamiento tipo objeto
 
-    private String storageClass; // "STANDARD", "REDUCED_REDUNDANCY", etc.
-    private String versionId; // si el bucket tiene versionado habilitado
-    private String bucketName; // nombre del bucket de origen
+    @Schema(description = "Storage class (S3/MinIO only)", example = "STANDARD")
+    private String storageClass;
+
+    @Schema(description = "Version ID (if versioning enabled)", example = "v1")
+    private String versionId;
+
+    @Schema(description = "Source bucket name (S3/MinIO only)", example = "my-bucket")
+    private String bucketName;
 
 }

@@ -1,6 +1,7 @@
 package com.github.xjesusx0.cloudbox.domain.models;
 
 import com.github.xjesusx0.cloudbox.core.exceptions.NotFoundException;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -8,11 +9,16 @@ import java.util.Arrays;
 
 @Getter
 @RequiredArgsConstructor
+@Schema(description = "Supported storage protocols for file operations")
 public enum StorageProtocol {
 
+    @Schema(description = "S3 / Object Storage (MinIO)")
     S3(1),
+    @Schema(description = "File Transfer Protocol")
     FTP(2),
+    @Schema(description = "Server Message Block (Windows Shared Folder)")
     SMB(3),
+    @Schema(description = "Network File System")
     NFS(4);
 
     private final int id;
