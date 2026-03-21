@@ -1,15 +1,12 @@
 package com.github.xjesusx0.cloudbox.infrastructure.minio;
 
+import com.github.xjesusx0.cloudbox.application.dtos.FileDownload;
+import com.github.xjesusx0.cloudbox.core.exceptions.FileDownloadException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileListException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileUploadException;
 import com.github.xjesusx0.cloudbox.domain.models.StorageProtocol;
 import com.github.xjesusx0.cloudbox.domain.ports.StorageStrategy;
-import io.minio.BucketExistsArgs;
-import io.minio.ListObjectsArgs;
-import io.minio.MakeBucketArgs;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
-import io.minio.Result;
+import io.minio.*;
 import io.minio.messages.Item;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +14,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.net.URLConnection;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.StreamSupport;
 
@@ -112,6 +111,34 @@ public class MinioS3StorageStrategy implements StorageStrategy {
             throw new FileListException("Error listing files from MinIO", e);
         }
     }
+
+    @Override
+    public FileDownload download(String path) {
+        try {
+            StatObjectResponse stat = minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(path)
+                            .build());
+
+            InputStream stream = minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(path)
+                            .build());
+
+            String filename = Paths.get(path).getFileName().toString();
+            String contentType = stat.contentType() != null
+                    ? stat.contentType()
+                    : URLConnection.guessContentTypeFromName(filename);
+
+            return new FileDownload(filename, contentType, stream, stat.size());
+
+        } catch (Exception e) {
+            throw new FileDownloadException("Error downloading from MinIO: " + path, e);
+        }
+    }
+
 
     private String extractName(String objectName) {
         int lastSlash = objectName.lastIndexOf('/');

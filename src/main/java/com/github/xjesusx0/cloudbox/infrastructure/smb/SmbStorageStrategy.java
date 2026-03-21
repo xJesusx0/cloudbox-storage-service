@@ -1,6 +1,8 @@
 package com.github.xjesusx0.cloudbox.infrastructure.smb;
 
+import com.github.xjesusx0.cloudbox.application.dtos.FileDownload;
 import com.github.xjesusx0.cloudbox.application.dtos.FileMetadata;
+import com.github.xjesusx0.cloudbox.core.exceptions.FileDownloadException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileListException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileUploadException;
 import com.github.xjesusx0.cloudbox.domain.models.StorageProtocol;
@@ -20,8 +22,12 @@ import com.hierynomus.mssmb2.SMB2CreateDisposition;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
 import com.hierynomus.smbj.share.File;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URLConnection;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -61,8 +67,7 @@ public class SmbStorageStrategy implements StorageStrategy {
 
     @Override
     public void save(MultipartFile file, String userId) {
-        SMBClient client = createSmbClient();
-        try (Connection connection = client.connect(host)) {
+        try (SMBClient client = createSmbClient(); Connection connection = client.connect(host)) {
             AuthenticationContext ac = new AuthenticationContext(username, password.toCharArray(), domain);
             try (Session session = connection.authenticate(ac)) {
                 try (DiskShare diskShare = (DiskShare) session.connectShare(share)) {
@@ -87,15 +92,12 @@ public class SmbStorageStrategy implements StorageStrategy {
             }
         } catch (Exception e) {
             throw new FileUploadException("Error uploading file to SMB server", e);
-        } finally {
-            client.close();
         }
     }
 
     @Override
     public List<FileMetadata> listFiles(String userId) {
-        SMBClient client = createSmbClient();
-        try (Connection connection = client.connect(host)) {
+        try (SMBClient client = createSmbClient(); Connection connection = client.connect(host)) {
             AuthenticationContext ac = new AuthenticationContext(username, password.toCharArray(), domain);
             try (Session session = connection.authenticate(ac)) {
                 try (DiskShare diskShare = (DiskShare) session.connectShare(share)) {
@@ -112,10 +114,56 @@ public class SmbStorageStrategy implements StorageStrategy {
             }
         } catch (Exception e) {
             throw new FileListException("Error listing files from SMB server", e);
-        } finally {
-            client.close();
         }
     }
+
+
+    @Override
+    public FileDownload download(String path) {
+        try (SMBClient client = createSmbClient(); Connection connection = client.connect(host)) {
+            AuthenticationContext ac = new AuthenticationContext(
+                    username, password.toCharArray(), domain);
+
+            try (Session session = connection.authenticate(ac)) {
+                try (DiskShare diskShare = (DiskShare) session.connectShare(share)) {
+
+                    // path esperado: "userId/filename.pdf"
+                    String smbPath = path.replace("/", "\\");
+
+                    if (!diskShare.fileExists(smbPath)) {
+                        throw new FileDownloadException("File not found in SMB: " + path, null);
+                    }
+
+                    try (File smbFile = diskShare.openFile(
+                            smbPath,
+                            EnumSet.of(AccessMask.GENERIC_READ),
+                            null,
+                            SMB2ShareAccess.ALL,
+                            SMB2CreateDisposition.FILE_OPEN,
+                            null)) {
+
+                        // ⚠️ SMB: igual que FTP, volcamos a memoria
+                        // porque la conexión se cierra al salir del try-with-resources
+                        InputStream smbStream = smbFile.getInputStream();
+                        byte[] bytes = smbStream.readAllBytes();
+
+                        String filename = Paths.get(path).getFileName().toString();
+                        String contentType = URLConnection.guessContentTypeFromName(filename);
+
+                        return new FileDownload(
+                                filename,
+                                contentType != null ? contentType : "application/octet-stream",
+                                new ByteArrayInputStream(bytes),
+                                bytes.length
+                        );
+                    }
+                }
+            }
+        } catch (IOException e) {
+            throw new FileDownloadException("Error downloading from SMB: " + path, e);
+        }
+    }
+
 
     private FileMetadata buildMetadata(FileIdBothDirectoryInformation f, String userId) {
         boolean isDir = (f.getFileAttributes()

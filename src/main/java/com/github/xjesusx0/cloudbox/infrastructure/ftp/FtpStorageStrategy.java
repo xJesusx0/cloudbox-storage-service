@@ -1,6 +1,8 @@
 package com.github.xjesusx0.cloudbox.infrastructure.ftp;
 
+import com.github.xjesusx0.cloudbox.application.dtos.FileDownload;
 import com.github.xjesusx0.cloudbox.application.dtos.FileMetadata;
+import com.github.xjesusx0.cloudbox.core.exceptions.FileDownloadException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileListException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileUploadException;
 import com.github.xjesusx0.cloudbox.domain.models.StorageProtocol;
@@ -10,16 +12,16 @@ import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPSClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.PrintCommandListener;
-import java.io.PrintWriter;
+
+import java.io.*;
 import java.net.URLConnection;
+import java.nio.file.Paths;
 import java.time.Instant;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
@@ -110,6 +112,47 @@ public class FtpStorageStrategy implements StorageStrategy {
 
         } catch (IOException e) {
             throw new FileListException("Error listing files from FTP server", e);
+        } finally {
+            disconnect(ftpClient);
+        }
+    }
+
+    @Override
+    public FileDownload download(String path) {
+        FTPSClient ftpClient = createFtpClient();
+        try {
+            ftpClient.connect(host, port);
+            if (!ftpClient.login(username, password)) {
+                throw new FileDownloadException("FTP authentication failed", null);
+            }
+            ftpClient.execPBSZ(0);
+            ftpClient.execPROT("P");
+            ftpClient.enterLocalPassiveMode();
+            ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+
+            // ⚠️ FTP: hay que volcar a memoria antes de cerrar la conexión
+            // Si devolvemos el stream directamente, la conexión se cierra
+            // en el finally y el controller no puede leer nada
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            boolean success = ftpClient.retrieveFile(path, buffer);
+
+            if (!success) {
+                throw new FileDownloadException("File not found in FTP: " + path, null);
+            }
+
+            String filename = Paths.get(path).getFileName().toString();
+            String contentType = URLConnection.guessContentTypeFromName(filename);
+            byte[] bytes = buffer.toByteArray();
+
+            return new FileDownload(
+                    filename,
+                    contentType != null ? contentType : "application/octet-stream",
+                    new ByteArrayInputStream(bytes),
+                    bytes.length
+            );
+
+        } catch (IOException e) {
+            throw new FileDownloadException("Error downloading from FTP: " + path, e);
         } finally {
             disconnect(ftpClient);
         }

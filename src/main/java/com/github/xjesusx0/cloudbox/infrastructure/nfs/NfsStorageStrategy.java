@@ -1,6 +1,8 @@
 package com.github.xjesusx0.cloudbox.infrastructure.nfs;
 
+import com.github.xjesusx0.cloudbox.application.dtos.FileDownload;
 import com.github.xjesusx0.cloudbox.application.dtos.FileMetadata;
+import com.github.xjesusx0.cloudbox.core.exceptions.FileDownloadException;
 import com.github.xjesusx0.cloudbox.domain.models.StorageProtocol;
 import com.github.xjesusx0.cloudbox.domain.ports.StorageStrategy;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileListException;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -62,6 +65,32 @@ public class NfsStorageStrategy implements StorageStrategy {
                     .toList();
         } catch (IOException e) {
             throw new FileListException("Error listando archivos NFS", e);
+        }
+    }
+
+    @Override
+    public FileDownload download(String path) {
+        try {
+            Path filePath = Paths.get(nfsMountPath, path);
+
+            if (!Files.exists(filePath)) {
+                throw new FileDownloadException("File not found: " + path, null);
+            }
+
+            String filename = filePath.getFileName().toString();
+            String contentType = Files.probeContentType(filePath);
+            if (contentType == null) contentType = URLConnection.guessContentTypeFromName(filename);
+
+            // NFS es local para Java — el stream puede vivir fuera sin problema
+            return new FileDownload(
+                    filename,
+                    contentType,
+                    Files.newInputStream(filePath),
+                    Files.size(filePath)
+            );
+
+        } catch (IOException e) {
+            throw new FileDownloadException("Error downloading from NFS: " + path, e);
         }
     }
 
