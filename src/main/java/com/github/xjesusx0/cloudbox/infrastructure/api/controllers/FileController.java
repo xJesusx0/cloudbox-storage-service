@@ -20,6 +20,8 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
+import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/files")
@@ -56,9 +58,10 @@ public class FileController {
             @ApiResponse(responseCode = "500", description = "Internal server error", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     })
     @GetMapping
-    public ResponseEntity<List<FileMetadata>> listFiles(
-            @RequestParam StorageProtocol protocol,
+    public ResponseEntity<Map<StorageProtocol, List<FileMetadata>>> listFiles(
+            @RequestParam Set<StorageProtocol> protocols,
             Principal principal) {
-        return ResponseEntity.ok(storageService.listFiles(protocol, principal.getName()));
+
+        return ResponseEntity.ok(storageService.listFiles(protocols, principal.getName()));
     }
 }

@@ -7,6 +7,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +25,14 @@ public class StorageService {
                 storageStrategyFactory.get(protocol).save(uploadItem.file(), userId);
             });
         });
+    }
+
+    public Map<StorageProtocol, List<FileMetadata>> listFiles(Set<StorageProtocol> protocols, String username) {
+        return protocols.stream()
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        p -> listFiles(p, username)
+                ));
     }
 
     public List<FileMetadata> listFiles(StorageProtocol protocol, String userId) {
