@@ -1,5 +1,6 @@
 package com.github.xjesusx0.cloudbox.infrastructure.api.controllers;
 
+import com.github.xjesusx0.cloudbox.application.dtos.FileDownload;
 import com.github.xjesusx0.cloudbox.application.dtos.UploadFilesRequest;
 import com.github.xjesusx0.cloudbox.application.dtos.FileMetadata;
 import com.github.xjesusx0.cloudbox.application.services.StorageService;
@@ -16,6 +17,9 @@ import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -63,5 +67,20 @@ public class FileController {
             Principal principal) {
 
         return ResponseEntity.ok(storageService.listFiles(protocols, principal.getName()));
+    }
+
+    @GetMapping("/download")
+    public ResponseEntity<InputStreamResource> download(
+            @RequestParam String path,
+            @RequestParam StorageProtocol protocol) {
+
+        FileDownload file = storageService.download(protocol, path);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + file.filename() + "\"")
+                .contentType(MediaType.parseMediaType(file.contentType()))
+                .contentLength(file.size())
+                .body(new InputStreamResource(file.inputStream()));
     }
 }

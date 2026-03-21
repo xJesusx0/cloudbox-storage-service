@@ -1,5 +1,6 @@
 package com.github.xjesusx0.cloudbox.application.services;
 
+import com.github.xjesusx0.cloudbox.application.dtos.FileDownload;
 import com.github.xjesusx0.cloudbox.application.dtos.UploadFilesRequest;
 import com.github.xjesusx0.cloudbox.application.dtos.FileMetadata;
 import com.github.xjesusx0.cloudbox.domain.models.StorageProtocol;
@@ -37,5 +38,11 @@ public class StorageService {
 
     public List<FileMetadata> listFiles(StorageProtocol protocol, String userId) {
         return storageStrategyFactory.get(protocol).listFiles(userId);
+    }
+
+    public FileDownload download(StorageProtocol protocol, String path){
+        return storageStrategyFactory
+                .get(protocol)
+                .download(path);
     }
 }
