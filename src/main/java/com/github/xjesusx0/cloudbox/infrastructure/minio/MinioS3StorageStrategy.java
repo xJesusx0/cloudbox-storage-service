@@ -113,6 +113,32 @@ public class MinioS3StorageStrategy implements StorageStrategy {
     }
 
     @Override
+    public long getUsedSpace(String userId) {
+        try {
+            Iterable<Result<Item>> results = minioClient.listObjects(
+                    ListObjectsArgs.builder()
+                            .bucket(bucket)
+                            .prefix(userId + "/")
+                            .recursive(true)
+                            .build());
+
+            return StreamSupport.stream(results.spliterator(), false)
+                    .mapToLong(result -> {
+                        try {
+                            return result.get().size();
+                        } catch (Exception e) {
+                            log.warn("Error reading item size from MinIO", e);
+                            return 0L;
+                        }
+                    })
+                    .sum();
+        } catch (Exception e) {
+            log.error("Failed to calculate used space for user {} in MinIO", userId, e);
+            return 0L;
+        }
+    }
+
+    @Override
     public FileDownload download(String path) {
         try {
             StatObjectResponse stat = minioClient.statObject(

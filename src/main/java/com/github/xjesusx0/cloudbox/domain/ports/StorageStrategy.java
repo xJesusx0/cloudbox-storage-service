@@ -11,4 +11,5 @@ public interface StorageStrategy {
     void save(MultipartFile file, String username);
     List<FileMetadata> listFiles(String username);
     FileDownload download(String path);
+    long getUsedSpace(String username);
 }

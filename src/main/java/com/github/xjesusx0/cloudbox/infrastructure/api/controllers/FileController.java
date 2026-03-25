@@ -5,6 +5,7 @@ import com.github.xjesusx0.cloudbox.application.dtos.UploadFilesRequest;
 import com.github.xjesusx0.cloudbox.application.dtos.FileMetadata;
 import com.github.xjesusx0.cloudbox.application.services.StorageService;
 import com.github.xjesusx0.cloudbox.domain.models.StorageProtocol;
+import com.github.xjesusx0.cloudbox.application.dtos.StorageUsageResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -163,5 +164,40 @@ public class FileController {
                 .contentType(MediaType.parseMediaType(file.contentType()))
                 .contentLength(file.size())
                 .body(new InputStreamResource(file.inputStream()));
+    }
+
+    @Operation(
+            summary = "Get storage usage",
+            description = "Retrieves the total and per-protocol storage space consumed by the authenticated user."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Storage usage retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = StorageUsageResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Bad Request: One or more requested protocols are invalid",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Unauthorized",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Internal Server Error",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            )
+    })
+    @GetMapping("/usage")
+    public ResponseEntity<StorageUsageResponse> getUsedSpace(
+            @Parameter(description = "Set of storage protocols to query for usage", required = true, example = "S3,FTP")
+            @RequestParam Set<StorageProtocol> protocols,
+            Principal principal) {
+
+        return ResponseEntity.ok(storageService.getUsedSpace(protocols, principal.getName()));
     }
 }

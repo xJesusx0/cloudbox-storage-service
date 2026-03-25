@@ -13,6 +13,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
+import java.util.concurrent.CompletableFuture;
+
+import com.github.xjesusx0.cloudbox.application.dtos.StorageUsageResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -44,5 +47,24 @@ public class StorageService {
         return storageStrategyFactory
                 .get(protocol)
                 .download(path);
+    }
+
+    public StorageUsageResponse getUsedSpace(Set<StorageProtocol> protocols, String userId) {
+        Map<StorageProtocol, CompletableFuture<Long>> futures = protocols.stream()
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        p -> CompletableFuture.supplyAsync(() -> 
+                                storageStrategyFactory.get(p).getUsedSpace(userId))
+                ));
+
+        Map<StorageProtocol, Long> byProtocol = futures.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> e.getValue().join()
+                ));
+
+        long totalBytes = byProtocol.values().stream().mapToLong(Long::longValue).sum();
+
+        return new StorageUsageResponse(totalBytes, byProtocol);
     }
 }

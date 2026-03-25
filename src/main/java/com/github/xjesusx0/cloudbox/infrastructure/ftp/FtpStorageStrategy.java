@@ -118,6 +118,51 @@ public class FtpStorageStrategy implements StorageStrategy {
     }
 
     @Override
+    public long getUsedSpace(String userId) {
+        FTPSClient ftpClient = createFtpClient();
+        try {
+            ftpClient.connect(host, port);
+            if (!ftpClient.login(username, password)) {
+                log.warn("Could not login to FTP server for used space calculation");
+                return 0L;
+            }
+            ftpClient.execPBSZ(0);
+            ftpClient.execPROT("P");
+            ftpClient.enterLocalPassiveMode();
+
+            if (!ftpClient.changeWorkingDirectory(userId)) {
+                return 0L;
+            }
+
+            return calculateFtpSize(ftpClient, "");
+        } catch (IOException e) {
+            log.error("Error calculating used space for user {} on FTP server", userId, e);
+            return 0L;
+        } finally {
+            disconnect(ftpClient);
+        }
+    }
+
+    private long calculateFtpSize(FTPSClient ftpClient, String path) throws IOException {
+        long totalSize = 0;
+        FTPFile[] files = path.isEmpty() ? ftpClient.listFiles() : ftpClient.listFiles(path);
+
+        if (files != null) {
+            for (FTPFile file : files) {
+                if (file.isValid() && !file.getName().equals(".") && !file.getName().equals("..")) {
+                    if (file.isDirectory()) {
+                        String subDir = path.isEmpty() ? file.getName() : path + "/" + file.getName();
+                        totalSize += calculateFtpSize(ftpClient, subDir);
+                    } else {
+                        totalSize += file.getSize();
+                    }
+                }
+            }
+        }
+        return totalSize;
+    }
+
+    @Override
     public FileDownload download(String path) {
         FTPSClient ftpClient = createFtpClient();
         try {

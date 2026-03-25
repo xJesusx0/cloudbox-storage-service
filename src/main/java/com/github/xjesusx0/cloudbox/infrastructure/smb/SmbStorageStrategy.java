@@ -117,6 +117,46 @@ public class SmbStorageStrategy implements StorageStrategy {
         }
     }
 
+    @Override
+    public long getUsedSpace(String userId) {
+        try (SMBClient client = createSmbClient(); Connection connection = client.connect(host)) {
+            AuthenticationContext ac = new AuthenticationContext(username, password.toCharArray(), domain);
+            try (Session session = connection.authenticate(ac)) {
+                try (DiskShare diskShare = (DiskShare) session.connectShare(share)) {
+                    if (!diskShare.folderExists(userId)) {
+                        return 0L;
+                    }
+                    return calculateSmbSize(diskShare, userId);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error calculating used space for user {} on SMB server", userId, e);
+            return 0L;
+        }
+    }
+
+    private long calculateSmbSize(DiskShare diskShare, String folderPath) {
+        long totalSize = 0;
+        try {
+            for (FileIdBothDirectoryInformation f : diskShare.list(folderPath)) {
+                String fileName = f.getFileName();
+                if (fileName.equals(".") || fileName.equals("..")) {
+                    continue;
+                }
+                
+                boolean isDir = (f.getFileAttributes() & FileAttributes.FILE_ATTRIBUTE_DIRECTORY.getValue()) != 0;
+                if (isDir) {
+                    totalSize += calculateSmbSize(diskShare, folderPath + "\\" + fileName);
+                } else {
+                    totalSize += f.getEndOfFile();
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to read folder {} on SMB", folderPath, e);
+        }
+        return totalSize;
+    }
+
 
     @Override
     public FileDownload download(String path) {
@@ -169,18 +209,21 @@ public class SmbStorageStrategy implements StorageStrategy {
         boolean isDir = (f.getFileAttributes()
                 & FileAttributes.FILE_ATTRIBUTE_DIRECTORY.getValue()) != 0;
 
+        Instant lastWriteTime = toInstant(f.getLastWriteTime());
+        String etag = f.getEndOfFile() + "-" + (lastWriteTime != null ? lastWriteTime.toEpochMilli() : 0);
+
         return FileMetadata.builder()
                 .name(f.getFileName())
                 .path(userId + "/" + f.getFileName())
                 .size(f.getEndOfFile())
                 .isDirectory(isDir)
-                .lastModified(toInstant(f.getLastWriteTime()))
+                .lastModified(lastWriteTime)
                 .creationTime(toInstant(f.getCreationTime()))
                 .lastAccessTime(toInstant(f.getLastAccessTime()))
                 .allocationSize(f.getAllocationSize())
                 .extension(extractExtension(f.getFileName()))
                 .mimeType(URLConnection.guessContentTypeFromName(f.getFileName()))
-                .etag(f.getEndOfFile() + "-" + toInstant(f.getLastWriteTime()).toEpochMilli())
+                .etag(etag)
                 // owner/group: no expuesto por FileIdBothDirectoryInformation
                 .build();
     }

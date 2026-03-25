@@ -160,4 +160,52 @@ class FtpStorageStrategyTest {
         
         verify(ftpClient, never()).listFiles();
     }
+
+    @Test
+    void getUsedSpace_shouldReturnZeroWhenLoginFails() throws IOException {
+        String userId = "user123";
+
+        when(ftpClient.login("user", "pass")).thenReturn(false);
+
+        long usedSpace = strategy.getUsedSpace(userId);
+
+        assertEquals(0L, usedSpace);
+        verify(ftpClient, never()).listFiles();
+    }
+
+    @Test
+    void getUsedSpace_shouldCalculateSpaceRecursively() throws IOException {
+        String userId = "user123";
+
+        FTPFile rootFile = new FTPFile();
+        rootFile.setName("file1.txt");
+        rootFile.setSize(100);
+        rootFile.setType(FTPFile.FILE_TYPE);
+        
+        FTPFile folder = new FTPFile();
+        folder.setName("subfolder");
+        folder.setType(FTPFile.DIRECTORY_TYPE);
+        
+        FTPFile subFile = new FTPFile();
+        subFile.setName("file2.txt");
+        subFile.setSize(50);
+        subFile.setType(FTPFile.FILE_TYPE);
+        
+        FTPFile dotFile = new FTPFile();
+        dotFile.setName(".");
+        dotFile.setType(FTPFile.DIRECTORY_TYPE);
+
+        when(ftpClient.login("user", "pass")).thenReturn(true);
+        when(ftpClient.changeWorkingDirectory(userId)).thenReturn(true);
+        
+        // Mock root directory listing
+        when(ftpClient.listFiles()).thenReturn(new FTPFile[]{rootFile, folder, dotFile});
+        
+        // Mock subfolder listing
+        when(ftpClient.listFiles("subfolder")).thenReturn(new FTPFile[]{subFile});
+
+        long usedSpace = strategy.getUsedSpace(userId);
+
+        assertEquals(150L, usedSpace); // 100 + 50
+    }
 }

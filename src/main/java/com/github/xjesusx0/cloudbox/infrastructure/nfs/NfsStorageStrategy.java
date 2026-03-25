@@ -69,6 +69,31 @@ public class NfsStorageStrategy implements StorageStrategy {
     }
 
     @Override
+    public long getUsedSpace(String userId) {
+        Path userDir = Paths.get(nfsMountPath, userId);
+        
+        if (!Files.exists(userDir)) {
+            return 0L;
+        }
+
+        try (java.util.stream.Stream<Path> stream = Files.walk(userDir)) {
+            return stream.filter(Files::isRegularFile)
+                    .mapToLong(path -> {
+                        try {
+                            return Files.size(path);
+                        } catch (IOException e) {
+                            log.warn("No se pudo leer el tamaño de: {}", path, e);
+                            return 0L;
+                        }
+                    })
+                    .sum();
+        } catch (IOException e) {
+            log.error("Error calculando el espacio usado del usuario {} en NFS", userId, e);
+            return 0L;
+        }
+    }
+
+    @Override
     public FileDownload download(String path) {
         try {
             Path filePath = Paths.get(nfsMountPath, path);

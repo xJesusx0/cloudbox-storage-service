@@ -151,4 +151,57 @@ class SmbStorageStrategyTest {
         assertTrue(exception.getMessage().contains("Error listing files from SMB server"));
         verify(smbClient).close();
     }
+
+    @Test
+    void getUsedSpace_FailedConnection_ShouldReturnZero() throws Exception {
+        // Arrange
+        String userId = "user123";
+
+        when(smbClient.connect(HOST)).thenThrow(new IOException("Connection failed"));
+
+        // Act
+        long usedSpace = strategy.getUsedSpace(userId);
+
+        // Assert
+        assertEquals(0L, usedSpace);
+        verify(smbClient).close();
+    }
+
+    @Test
+    void getUsedSpace_SuccessfulCalculation_ShouldReturnTotalBytes() throws Exception {
+        // Arrange
+        String userId = "user123";
+
+        when(smbClient.connect(HOST)).thenReturn(connection);
+        when(connection.authenticate(any(AuthenticationContext.class))).thenReturn(session);
+        when(session.connectShare(SHARE)).thenReturn(diskShare);
+        when(diskShare.folderExists(userId)).thenReturn(true);
+
+        FileIdBothDirectoryInformation rootFile = mock(FileIdBothDirectoryInformation.class);
+        when(rootFile.getFileName()).thenReturn("file1.txt");
+        when(rootFile.getEndOfFile()).thenReturn(100L);
+        when(rootFile.getFileAttributes()).thenReturn(0L);
+
+        FileIdBothDirectoryInformation dotInfo = mock(FileIdBothDirectoryInformation.class);
+        when(dotInfo.getFileName()).thenReturn(".");
+
+        FileIdBothDirectoryInformation subFolderInfo = mock(FileIdBothDirectoryInformation.class);
+        when(subFolderInfo.getFileName()).thenReturn("subFolder");
+        when(subFolderInfo.getFileAttributes()).thenReturn(com.hierynomus.msfscc.FileAttributes.FILE_ATTRIBUTE_DIRECTORY.getValue());
+
+        FileIdBothDirectoryInformation subFile = mock(FileIdBothDirectoryInformation.class);
+        when(subFile.getFileName()).thenReturn("file2.txt");
+        when(subFile.getEndOfFile()).thenReturn(200L);
+        when(subFile.getFileAttributes()).thenReturn(0L);
+
+        when(diskShare.list(userId)).thenReturn(List.of(dotInfo, rootFile, subFolderInfo));
+        when(diskShare.list(userId + "\\subFolder")).thenReturn(List.of(subFile));
+
+        // Act
+        long usedSpace = strategy.getUsedSpace(userId);
+
+        // Assert
+        assertEquals(300L, usedSpace); // 100 + 200
+        verify(smbClient).close();
+    }
 }
