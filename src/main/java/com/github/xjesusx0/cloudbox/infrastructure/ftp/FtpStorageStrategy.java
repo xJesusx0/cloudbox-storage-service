@@ -2,6 +2,7 @@ package com.github.xjesusx0.cloudbox.infrastructure.ftp;
 
 import com.github.xjesusx0.cloudbox.application.dtos.FileDownload;
 import com.github.xjesusx0.cloudbox.application.dtos.FileMetadata;
+import com.github.xjesusx0.cloudbox.core.exceptions.FileDeleteException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileDownloadException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileListException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileUploadException;
@@ -198,6 +199,29 @@ public class FtpStorageStrategy implements StorageStrategy {
 
         } catch (IOException e) {
             throw new FileDownloadException("Error downloading from FTP: " + path, e);
+        } finally {
+            disconnect(ftpClient);
+        }
+    }
+
+    @Override
+    public void deleteFile(String path) {
+        FTPSClient ftpClient = createFtpClient();
+        try {
+            ftpClient.connect(host, port);
+            if (!ftpClient.login(username, password)) {
+                throw new FileDeleteException("FTP authentication failed when deleting: " + path);
+            }
+            ftpClient.execPBSZ(0);
+            ftpClient.execPROT("P");
+            ftpClient.enterLocalPassiveMode();
+
+            boolean deleted = ftpClient.deleteFile(path);
+            if (!deleted) {
+                throw new FileDeleteException("File not found or could not be deleted in FTP: " + path);
+            }
+        } catch (IOException e) {
+            throw new FileDeleteException("Error deleting file from FTP: " + path, e);
         } finally {
             disconnect(ftpClient);
         }

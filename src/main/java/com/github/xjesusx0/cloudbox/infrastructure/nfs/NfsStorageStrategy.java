@@ -2,6 +2,7 @@ package com.github.xjesusx0.cloudbox.infrastructure.nfs;
 
 import com.github.xjesusx0.cloudbox.application.dtos.FileDownload;
 import com.github.xjesusx0.cloudbox.application.dtos.FileMetadata;
+import com.github.xjesusx0.cloudbox.core.exceptions.FileDeleteException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileDownloadException;
 import com.github.xjesusx0.cloudbox.domain.models.StorageProtocol;
 import com.github.xjesusx0.cloudbox.domain.ports.StorageStrategy;
@@ -116,6 +117,19 @@ public class NfsStorageStrategy implements StorageStrategy {
 
         } catch (IOException e) {
             throw new FileDownloadException("Error downloading from NFS: " + path, e);
+        }
+    }
+
+    @Override
+    public void deleteFile(String path) {
+        try {
+            Path filePath = Paths.get(nfsMountPath, path);
+            boolean deleted = Files.deleteIfExists(filePath);
+            if (!deleted) {
+                throw new FileDeleteException("File not found in NFS: " + path);
+            }
+        } catch (IOException e) {
+            throw new FileDeleteException("Error deleting file from NFS: " + path, e);
         }
     }
 

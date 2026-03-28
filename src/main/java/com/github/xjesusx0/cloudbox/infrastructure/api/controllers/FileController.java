@@ -200,4 +200,79 @@ public class FileController {
 
         return ResponseEntity.ok(storageService.getUsedSpace(protocols, principal.getName()));
     }
+
+    @Operation(
+            summary = "Delete a file",
+            description = "Permanently deletes a file from the specified storage backend given its path."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "File deleted successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Not Found: The file does not exist at the specified path",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Bad Request: Invalid path or protocol",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Internal Server Error during deletion",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            )
+    })
+    @DeleteMapping
+    public ResponseEntity<Void> deleteFile(
+            @Parameter(description = "Relative path of the file to delete", required = true, example = "userId/document.pdf")
+            @RequestParam String path,
+            @Parameter(description = "Storage protocol where the file resides", required = true, example = "S3")
+            @RequestParam StorageProtocol protocol) {
+
+        storageService.deleteFile(protocol, path);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
+            summary = "Move a file between protocols",
+            description = "Downloads a file from the source protocol, uploads it to the destination protocol, and deletes it from the source."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "File moved successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Not Found: The file does not exist at the specified path in the source protocol",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Bad Request: Invalid path or protocol",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Internal Server Error during move operation",
+                    content = @Content(schema = @Schema(implementation = ProblemDetail.class))
+            )
+    })
+    @PostMapping("/move")
+    public ResponseEntity<Void> moveFile(
+            @Parameter(description = "Relative path of the file to move (e.g. userId/filename.pdf)", required = true)
+            @RequestParam String path,
+            @Parameter(description = "Source storage protocol", required = true, example = "FTP")
+            @RequestParam StorageProtocol from,
+            @Parameter(description = "Destination storage protocol", required = true, example = "S3")
+            @RequestParam StorageProtocol to) {
+
+        storageService.moveFile(path, from, to);
+        return ResponseEntity.noContent().build();
+    }
 }
+

@@ -1,6 +1,7 @@
 package com.github.xjesusx0.cloudbox.infrastructure.minio;
 
 import com.github.xjesusx0.cloudbox.application.dtos.FileDownload;
+import com.github.xjesusx0.cloudbox.core.exceptions.FileDeleteException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileDownloadException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileListException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileUploadException;
@@ -165,6 +166,17 @@ public class MinioS3StorageStrategy implements StorageStrategy {
         }
     }
 
+    @Override
+    public void deleteFile(String path) {
+        try {
+            minioClient.removeObject(RemoveObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(path)
+                    .build());
+        } catch (Exception e) {
+            throw new FileDeleteException("Error deleting file from MinIO: " + path, e);
+        }
+    }
 
     private String extractName(String objectName) {
         int lastSlash = objectName.lastIndexOf('/');

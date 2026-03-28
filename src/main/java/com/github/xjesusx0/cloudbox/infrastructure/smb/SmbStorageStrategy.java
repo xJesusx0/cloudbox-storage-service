@@ -2,6 +2,7 @@ package com.github.xjesusx0.cloudbox.infrastructure.smb;
 
 import com.github.xjesusx0.cloudbox.application.dtos.FileDownload;
 import com.github.xjesusx0.cloudbox.application.dtos.FileMetadata;
+import com.github.xjesusx0.cloudbox.core.exceptions.FileDeleteException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileDownloadException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileListException;
 import com.github.xjesusx0.cloudbox.core.exceptions.FileUploadException;
@@ -201,6 +202,26 @@ public class SmbStorageStrategy implements StorageStrategy {
             }
         } catch (IOException e) {
             throw new FileDownloadException("Error downloading from SMB: " + path, e);
+        }
+    }
+
+    @Override
+    public void deleteFile(String path) {
+        try (SMBClient client = createSmbClient(); Connection connection = client.connect(host)) {
+            AuthenticationContext ac = new AuthenticationContext(username, password.toCharArray(), domain);
+            try (Session session = connection.authenticate(ac)) {
+                try (DiskShare diskShare = (DiskShare) session.connectShare(share)) {
+                    String smbPath = path.replace("/", "\\\\");
+                    if (!diskShare.fileExists(smbPath)) {
+                        throw new FileDeleteException("File not found in SMB: " + path);
+                    }
+                    diskShare.rm(smbPath);
+                }
+            }
+        } catch (FileDeleteException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new FileDeleteException("Error deleting file from SMB: " + path, e);
         }
     }
 
