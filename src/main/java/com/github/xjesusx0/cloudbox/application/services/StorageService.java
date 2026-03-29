@@ -71,17 +71,11 @@ public class StorageService {
         storageStrategyFactory.get(protocol).deleteFile(path);
     }
 
-    public void moveFile(String path, StorageProtocol from, StorageProtocol to) {
+    public void moveFile(String path, StorageProtocol from, StorageProtocol to, String userId) {
         FileDownload file = storageStrategyFactory.get(from).download(path);
         MultipartFile multipartFile = new FileDownloadMultipartFile(file);
-        storageStrategyFactory.get(to).save(multipartFile, extractUserId(path));
+        storageStrategyFactory.get(to).save(multipartFile, userId);
         storageStrategyFactory.get(from).deleteFile(path);
-    }
-
-    /** Extracts the userId from a path of the form "userId/filename". */
-    private String extractUserId(String path) {
-        int slash = path.indexOf('/');
-        return (slash != -1) ? path.substring(0, slash) : path;
     }
 
     /**

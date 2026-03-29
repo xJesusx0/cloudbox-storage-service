@@ -269,9 +269,10 @@ public class FileController {
             @Parameter(description = "Source storage protocol", required = true, example = "FTP")
             @RequestParam StorageProtocol from,
             @Parameter(description = "Destination storage protocol", required = true, example = "S3")
-            @RequestParam StorageProtocol to) {
+            @RequestParam StorageProtocol to,
+            Principal principal) {
 
-        storageService.moveFile(path, from, to);
+        storageService.moveFile(path, from, to, principal.getName());
         return ResponseEntity.noContent().build();
     }
 }
