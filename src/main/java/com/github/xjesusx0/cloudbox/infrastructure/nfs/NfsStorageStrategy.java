@@ -97,7 +97,7 @@ public class NfsStorageStrategy implements StorageStrategy {
     @Override
     public FileDownload download(String path) {
         try {
-            Path filePath = Paths.get(nfsMountPath, path);
+            Path filePath = Paths.get(path);
 
             if (!Files.exists(filePath)) {
                 throw new FileDownloadException("File not found: " + path, null);
