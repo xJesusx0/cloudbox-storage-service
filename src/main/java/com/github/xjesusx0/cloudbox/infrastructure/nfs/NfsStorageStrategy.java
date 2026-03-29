@@ -72,7 +72,7 @@ public class NfsStorageStrategy implements StorageStrategy {
     @Override
     public long getUsedSpace(String userId) {
         Path userDir = Paths.get(nfsMountPath, userId);
-        
+
         if (!Files.exists(userDir)) {
             return 0L;
         }
@@ -105,15 +105,15 @@ public class NfsStorageStrategy implements StorageStrategy {
 
             String filename = filePath.getFileName().toString();
             String contentType = Files.probeContentType(filePath);
-            if (contentType == null) contentType = URLConnection.guessContentTypeFromName(filename);
+            if (contentType == null)
+                contentType = URLConnection.guessContentTypeFromName(filename);
 
             // NFS es local para Java — el stream puede vivir fuera sin problema
             return new FileDownload(
                     filename,
                     contentType,
                     Files.newInputStream(filePath),
-                    Files.size(filePath)
-            );
+                    Files.size(filePath));
 
         } catch (IOException e) {
             throw new FileDownloadException("Error downloading from NFS: " + path, e);
@@ -123,7 +123,7 @@ public class NfsStorageStrategy implements StorageStrategy {
     @Override
     public void deleteFile(String path) {
         try {
-            Path filePath = Paths.get(nfsMountPath, path);
+            Path filePath = Paths.get(path); // el path ya incluye el punto de montaje
             boolean deleted = Files.deleteIfExists(filePath);
             if (!deleted) {
                 throw new FileDeleteException("File not found in NFS: " + path);
